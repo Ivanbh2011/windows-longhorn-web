@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador Windows Longhorn (Frutiger Aero)</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: 'Segoe UI', Arial, sans-serif; /* Fuente más acorde */
+      background: #E0E0E0; /* Fondo general sutil */
+    }
+
+    /* -------------------------- BOOT SCREEN -------------------------- */
+    #screen {
+      color: white;
+      background: black;
+      width: 100vw;
+      height: 100vh;
+      padding: 10px;
+      box-sizing: border-box;
+      white-space: pre-wrap;
+      font-family: 'Consolas', 'Lucida Console', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* -------------------------- OPERATING SYSTEM (OS) -------------------------- */
+    #os {
+      display: none;
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      /* Si no tienes una imagen Frutiger Aero, puedes usar un degradado como fallback: */
+      /* background: linear-gradient(135deg, #7ad7f0, #4a90e2, #2a6edc); */
+      /* Añadir un sutil desenfoque o filtro si la imagen lo permite */
+    }
+
+    /* -------------------------- WINDOWS -------------------------- */
+    .window {
+      border: 1px solid rgba(0,0,0,0.1); /* Borde suave */
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2); /* Sombra difusa y brillo interior */
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.8); /* Fondo semitransparente blanco */
+      backdrop-filter: blur(5px); /* Efecto cristal */
+      border-radius: 8px; /* Bordes redondeados */
+      display: flex;
+      flex-direction: column;
+      overflow: hidden; /* Para que el contenido no se salga de los bordes redondeados */
+    }
+    .window .title-bar {
+      padding: 6px 10px; /* Más padding */
+      cursor: grab; /* Cursor de arrastre */
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+      color: white;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* Sombra de texto */
+      background: linear-gradient(to bottom, #72aee6 0%, #4f8fdc 50%, #2f6cb0 100%); /* Degradado azul vibrante */
+      border-bottom: 1px solid rgba(0,0,0,0.2); /* Borde inferior */
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.3); /* Brillo superior */
+      flex-shrink: 0;
+      border-top-left-radius: 7px; /* Para que coincida con la ventana */
+      border-top-right-radius: 7px;
+    }
+    .window .title-bar span {
+      user-select: none;
+    }
+    .window .title-bar .controls span {
+        display: inline-block;
+        width: 24px; /* Más grandes */
+        height: 20px;
+        line-height: 18px; /* Ajuste para centrar el icono */
+        text-align: center;
+        margin-left: 5px;
+        border: 1px solid rgba(0,0,0,0.2);
+        background: linear-gradient(to bottom, #e8e8e8, #d8d8d8); /* Degradado gris claro */
+        color: #333;
+        cursor: pointer;
+        font-family: 'Segoe UI Symbol', sans-serif; /* Símbolos */
+        font-size: 14px; /* Iconos más grandes */
+        vertical-align: middle;
+        border-radius: 4px; /* Bordes redondeados para botones */
+        box-shadow: 0 1px 2px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.7); /* Sombra y brillo 3D */
+    }
+    .window .title-bar .controls span:hover {
+        background: linear-gradient(to bottom, #f0f0f0, #e0e0e0); /* Efecto hover más brillante */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    .window .title-bar .controls span:active {
+        background: linear-gradient(to top, #d0d0d0, #e0e0e0); /* Efecto presionado */
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .window .title-bar .controls span:last-child { /* Botón de cerrar */
+        background: linear-gradient(to bottom, #f75555, #c73333); /* Rojo degradado */
+        color: white;
+        text-shadow: 1px 1px 1px rgba(0,0,0,0.4);
+    }
+    .window .title-bar .controls span:last-child:hover {
+        background: linear-gradient(to bottom, #ff7777, #e04444);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+    .window .title-bar .controls span:last-child:active {
+        background: linear-gradient(to top, #c73333, #f75555);
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+    }
+
+    .window textarea {
+      font-family: 'Segoe UI', Arial, sans-serif; /* Consistente con el tema */
+      width: calc(100% - 8px);
+      height: calc(100% - 8px); /* Ajuste de altura */
+      resize: none;
+      border: 1px solid #ccc; /* Borde suave */
+      border-radius: 4px;
+      padding: 4px;
+      box-sizing: border-box;
+      outline: none; /* Sin borde azul al enfocar */
+    }
+
+    /* -------------------------- TASKBAR -------------------------- */
+    #taskbar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 48px; /* Más alto */
+      background: linear-gradient(to bottom, rgba(70, 150, 220, 0.8), rgba(30, 100, 180, 0.8)); /* Degradado azul semitransparente */
+      backdrop-filter: blur(8px); /* Efecto cristal */
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: white;
+      padding: 0 15px; /* Más padding */
+      font-size: 15px;
+      box-sizing: border-box;
+      z-index: 100;
+      border-top: 1px solid rgba(255,255,255,0.3); /* Borde superior brillante */
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.3); /* Sombra sutil hacia arriba */
+    }
+    #start-button {
+      background: linear-gradient(to bottom, #5bb4ef 0%, #0078d4 100%); /* Degradado azul Start */
+      border: 1px solid rgba(0,0,0,0.2);
+      padding: 8px 20px; /* Más grande */
+      cursor: pointer;
+      font-weight: bold;
+      border-radius: 20px; /* Muy redondeado */
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.5); /* Sombra y brillo */
+      text-shadow: 1px 1px 1px rgba(0,0,0,0.4);
+      transition: all 0.1s ease;
+    }
+    #start-button:hover {
+        background: linear-gradient(to bottom, #6cd6ff 0%, #1a8ceb 100%); /* Efecto hover */
+        box-shadow: 0 3px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+    #start-button:active {
+        background: linear-gradient(to top, #5bb4ef 0%, #0078d4 100%); /* Efecto presionado */
+        box-shadow: inset 0 1px 5px rgba(0,0,0,0.4);
+        transform: translateY(1px);
+    }
+    #clock {
+        background: rgba(255,255,255,0.2); /* Fondo semitransparente para el reloj */
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: 1px solid rgba(255,255,255,0.1);
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* -------------------------- START MENU -------------------------- */
+    #start-menu {
+      position: absolute;
+      bottom: 48px; /* Ajustado a la altura de la taskbar */
+      left: 0;
+      background: rgba(255, 255, 255, 0.9); /* Casi blanco, semitransparente */
+      backdrop-filter: blur(10px); /* Efecto cristal más fuerte */
+      border: 1px solid rgba(0,0,0,0.2);
+      border-radius: 8px 8px 0 0; /* Solo arriba redondeado */
+      display: none;
+      flex-direction: column;
+      min-width: 250px; /* Más ancho */
+      font-family: 'Segoe UI', Arial, sans-serif;
+      box-shadow: 0 -5px 15px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.7); /* Sombra y brillo */
+      z-index: 90;
+      overflow: hidden; /* Para que el contenido no se salga del radio */
+    }
+    #start-menu div {
+      padding: 12px 15px; /* Más padding */
+      cursor: pointer;
+      border-bottom: 1px solid rgba(0,0,0,0.1); /* Borde más suave */
+      color: #333;
+      transition: background 0.2s ease, color 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px; /* Espacio entre icono y texto */
+    }
+    #start-menu div:hover {
+        background: linear-gradient(to right, #316AC5, #5fa8e5); /* Degradado al pasar el ratón */
+        color: white;
+        text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
+    }
+    #start-menu div:last-child {
+        border-bottom: none; /* Sin borde en el último elemento */
+    }
+
+    /* -------------------------- DESKTOP ICONS -------------------------- */
+    #desktop-icons {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px; /* Más espacio */
+      color: white;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.6); /* Sombra para legibilidad */
+    }
+    .desktop-icon {
+      text-align: center;
+      cursor: pointer;
+      width: 80px; /* Más anchos */
+      padding: 8px;
+      border-radius: 8px; /* Más redondeados */
+      transition: background 0.2s ease;
+      font-size: 14px;
+    }
+    .desktop-icon:hover {
+        background: rgba(255,255,255,0.25); /* Más transparente y brillante */
+        box-shadow: 0 0 8px rgba(255,255,255,0.5), inset 0 0 5px rgba(255,255,255,0.3); /* Efecto de brillo */
+    }
+
+    /* -------------------------- PAINT APP -------------------------- */
+    .paint-app-controls {
+        display: flex;
+        align-items: center;
+        padding: 8px; /* Más padding */
+        background: rgba(240, 240, 240, 0.9); /* Semitransparente */
+        border-bottom: 1px solid rgba(0,0,0,0.1);
+        flex-shrink: 0;
+        box-shadow: inset 0 -1px 0 rgba(255,255,255,0.7); /* Brillo inferior */
+    }
+    .paint-app-controls label, .paint-app-controls input, .paint-app-controls button {
+        margin-right: 12px;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 13px;
+    }
+    .paint-app-controls input[type="color"] {
+        width: 35px; /* Más grande */
+        height: 25px;
+        border: 1px solid #ccc;
+        padding: 0;
+        border-radius: 4px;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .paint-app-controls input[type="range"] {
+        width: 100px;
+        -webkit-appearance: none; /* Eliminar estilo predeterminado */
+        height: 8px;
+        background: linear-gradient(to right, #ccc, #eee);
+        border-radius: 5px;
+        outline: none;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .paint-app-controls input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: linear-gradient(to bottom, #87cefa, #4682b4); /* Azul vibrante */
+        cursor: pointer;
+        border: 1px solid #333;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    .paint-app-controls button {
+        background: linear-gradient(to bottom, #e0e0e0, #c0c0c0); /* Gris degradado */
+        border: 1px solid #a0a0a0;
+        padding: 6px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.7);
+        transition: all 0.1s ease;
+    }
+    .paint-app-controls button:hover {
+        background: linear-gradient(to bottom, #f0f0f0, #d0d0d0);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    .paint-app-controls button:active {
+        background: linear-gradient(to top, #e0e0e0, #c0c0c0);
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+        transform: translateY(1px);
+    }
+    .paint-app-canvas {
+        flex-grow: 1;
+        background: white;
+        cursor: crosshair;
+        border: 1px solid #ddd;
+        border-radius: 4px; /* Suavizar esquinas */
+        margin: 5px; /* Pequeño margen interno */
+    }
+
+    /* -------------------------- CMD APP -------------------------- */
+    #cmd-output { /* Cambiado de #output a #cmd-output para evitar conflicto si hay otro 'output' */
+        padding: 10px;
+        height: calc(100% - 70px);
+        overflow-y: auto;
+        white-space: pre-wrap;
+        color: lime; /* Sigue siendo verde fluorescente */
+    }
+    #cmd-input { /* Cambiado de #input a #cmd-input */
+        flex-grow: 1;
+        background: black;
+        color: lime;
+        border: none;
+        font-family: 'Consolas', 'Lucida Console', monospace;
+        outline: none;
+        padding: 5px; /* Más padding para el input */
+        border-radius: 4px;
+    }
+    .window.cmd-window { /* Clase específica para CMD si es necesario más adelante */
+        background: rgba(0,0,0,0.9); /* Más opaco para terminal */
+        backdrop-filter: blur(0px); /* Sin blur para terminal */
+        border: 1px solid #333;
+        border-radius: 8px;
+    }
+    .window.cmd-window .title-bar {
+        background: linear-gradient(to bottom, #444, #222); /* Barra de título más oscura */
+        color: #eee;
+    }
+
+
+    /* -------------------------- BIOS / BLUE SCREEN / CRITICAL ERROR (no Frutiger Aero) -------------------------- */
+    #simulated-bios {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #000080; /* Dark blue BIOS background */
+        color: #AAAAAA; /* Grayish text */
+        font-family: "Lucida Console", "Consolas", monospace;
+        font-size: 16px;
+        padding: 20px;
+        box-sizing: border-box;
+        line-height: 1.5;
+        z-index: 1000;
+    }
+    #simulated-bios .bios-header {
+        color: #F0F0F0;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 20px;
+    }
+    #simulated-bios .bios-menu {
+        margin-top: 30px;
+        margin-left: 50px;
+    }
+    #simulated-bios .bios-menu-item {
+        padding: 5px 0;
+        cursor: pointer;
+    }
+    #simulated-bios .bios-menu-item.selected {
+        background: #0000FF; /* Blue selection bar */
+        color: #FFFFFF;
+    }
+    #simulated-bios .bios-footer {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        border-top: 1px solid #555555;
+        padding-top: 10px;
+        font-size: 14px;
+    }
+
+    /* Blue Screen of Death */
+    .blue-screen-of-death { /* Clase para la BSOD */
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #0000AA;
+        color: white;
+        font-family: monospace;
+        font-size: 20px;
+        padding: 50px;
+        box-sizing: border-box;
+        z-index: 9999;
+    }
+
+    /* Critical Error Screen */
+    #critical-error-screen {
+        display: none !important; /* <--- Mantenemos el !important aquí como la última corrección */
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #AA0000; /* Red error background */
+        color: white;
+        font-family: "Lucida Console", "Consolas", monospace;
+        font-size: 24px;
+        padding: 50px;
+        box-sizing: border-box;
+        text-align: center;
+        z-index: 9999;
+        display: flex; /* Se activará a 'flex' vía JS cuando sea necesario */
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    #critical-error-screen h1 {
+        font-size: 3em;
+        margin-bottom: 20px;
+    }
+    #critical-error-screen p {
+        margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="screen"></div>
+  <div id="os">
+    <div id="desktop-icons">
+      <div class="desktop-icon" onclick="openNotepad()">📝<br>Notepad</div>
+      <div class="desktop-icon" onclick="openCmd()">💻<br>CMD</div>
+      <div class="desktop-icon" onclick="openPaint()">🎨<br>Paint</div>
+    </div>
+    <div id="start-menu">
+      <div onclick="openNotepad()">📝 Notepad</div>
+      <div onclick="openCmd()">💻 CMD</div>
+      <div onclick="openPaint()">🎨 Paint</div>
+      <div onclick="window.location.reload();">Reiniciar</div>
+    </div>
+    <div id="taskbar">
+      <div id="start-button" onclick="toggleStartMenu()">🟦 Inicio</div>
+      <div id="clock"></div>
+    </div>
+  </div>
+
+  <div id="simulated-bios">
+    <div class="bios-header">
+      AWARD SOFTWARE, INC. CMOS SETUP UTILITY
+    </div>
+    <div class="bios-menu">
+      <div class="bios-menu-item selected" data-action="normal">Standard CMOS Features</div>
+      <div class="bios-menu-item" data-action="normal">Advanced BIOS Features</div>
+      <div class="bios-menu-item" data-action="normal">Integrated Peripherals</div>
+      <div class="bios-menu-item" data-action="normal">Power Management Setup</div>
+      <div class="bios-menu-item" data-action="critical-error">CRITICAL FILES & SYSTEM SETTINGS</div>
+      <div class="bios-menu-item" data-action="normal">Load Setup Defaults</div>
+      <div class="bios-menu-item" data-action="exit-save">Save & Exit Setup</div>
+      <div class="bios-menu-item" data-action="exit-discard">Exit Without Saving</div>
+    </div>
+    <div class="bios-footer">
+      <p>&#x2191;&#x2193; Select Item &nbsp; &nbsp; ENTER Select &nbsp; &nbsp; ESC Exit &nbsp; &nbsp; F1 General Help</p>
+      <p>F5 Load Optimized Defaults &nbsp; F6 Load Fail-Safe Defaults &nbsp; F7 Save & Exit Setup</p>
+    </div>
+  </div>
+
+  <div id="critical-error-screen">
+      <h1>!!! SYSTEM CORRUPTED !!!</h1>
+      <p>A critical system file has been modified or corrupted.</p>
+      <p>BIOS integrity check failed. System cannot boot.</p>
+      <p>Please contact your system administrator or refer to your motherboard manual.</p>
+      <p>ERROR CODE: 0x000000EE (BIOS_INTEGRITY_CHECK_FAILED)</p>
+      <p>System Halted.</p>
+  </div>
+
+
+  <script>
+    const screen = document.getElementById("screen");
+    const os = document.getElementById("os");
+    const simulatedBios = document.getElementById("simulated-bios");
+    const biosMenuItems = document.querySelectorAll('#simulated-bios .bios-menu-item');
+    const criticalErrorScreen = document.getElementById("critical-error-screen");
+
+    const lines = [
+      "Award Modular BIOS v4.51PG, An Energy Star Ally",
+      "Copyright (C) 1984-98, Award Software, Inc.",
+      "",
+      "ASUS P2B-D ACPI BIOS Revision 1014 Beta 003",
+      "",
+      "Pentium III 1396MHz Processor   , 2 Processor(s) Detected",
+      "Memory Test : 131072K OK",
+      "",
+      "Award Plug and Play BIOS Extension v1.0A",
+      "Initialize Plug and Play Cards...",
+      "PNP Init Completed",
+      "",
+      "Trend ChipAwayVirus(R) On Guard",
+      "",
+      "Detecting HDD Primary Master  ... SAMSUNG SV4002H",
+      "Detecting HDD Primary Slave   ... None",
+      "Detecting HDD Secondary Master... ATAPI   DVD 2X16X4X16",
+      "Detecting HDD Secondary Slave ... None_",
+      "",
+      "",
+      "",
+      "Press DEL to enter SETUP",
+      "08/01/2002-I440BX-P2B-D"
+    ];
+    let index = 0;
+    let bootTimeout;
+    let biosEntered = false;
+    let currentBiosSelection = 0;
+
+    function updateBiosSelection() {
+        biosMenuItems.forEach((item, i) => {
+            if (i === currentBiosSelection) {
+                item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+
+    function showBoot() {
+      if (biosEntered) return;
+
+      if (index < lines.length) {
+        let currentLine = lines[index];
+        if (currentLine.includes("An Energy Star Ally")) {
+            screen.innerHTML += currentLine.replace("An Energy Star Ally", "An <span style='color:#0f0;'>Energy</span> Star Ally") + "\n";
+        } else {
+            screen.innerText += currentLine + "\n";
+        }
+        index++;
+        bootTimeout = setTimeout(showBoot, 100);
+      } else {
+        setTimeout(() => {
+          screen.style.display = 'none';
+          os.style.display = 'block';
+          os.style.backgroundImage = "url('386828.jpg')"; // Asegúrate de tener esta imagen en la misma carpeta
+          updateClock();
+          setInterval(updateClock, 1000);
+          document.removeEventListener('keydown', handleBootKeydown);
+        }, 2000);
+      }
+    }
+
+    function enterSimulatedBIOS() {
+        clearTimeout(bootTimeout);
+        screen.style.display = 'none';
+        simulatedBios.style.display = 'block';
+        biosEntered = true;
+        currentBiosSelection = 0;
+        updateBiosSelection();
+        document.addEventListener('keydown', handleBiosKeydown);
+    }
+
+    function exitSimulatedBIOS() {
+        simulatedBios.style.display = 'none';
+        biosEntered = false;
+        index = 0;
+        screen.innerText = "";
+        screen.style.display = 'block';
+        showBoot();
+        document.removeEventListener('keydown', handleBiosKeydown);
+    }
+
+    function triggerCriticalError() {
+        simulatedBios.style.display = 'none';
+        screen.style.display = 'none';
+        os.style.display = 'none';
+        // Aseguramos que la BSOD no interfiera si se estaba mostrando
+        const existingBlueScreen = document.querySelector('.blue-screen-of-death');
+        if (existingBlueScreen) {
+            existingBlueScreen.style.display = 'none';
+        }
+        criticalErrorScreen.style.display = 'flex'; // Activamos la pantalla de error
+        document.removeEventListener('keydown', handleBiosKeydown);
+        document.removeEventListener('keydown', handleBootKeydown);
+    }
+
+    function handleBootKeydown(e) {
+        if ((e.key === 'Delete' || e.keyCode === 46) && !biosEntered && os.style.display === 'none' && criticalErrorScreen.style.display === 'none') {
+            e.preventDefault();
+            enterSimulatedBIOS();
+        }
+    }
+
+    function handleBiosKeydown(e) {
+        e.preventDefault();
+
+        if (e.key === 'ArrowUp' || e.keyCode === 38) {
+            currentBiosSelection = (currentBiosSelection - 1 + biosMenuItems.length) % biosMenuItems.length;
+            updateBiosSelection();
+        } else if (e.key === 'ArrowDown' || e.keyCode === 40) {
+            currentBiosSelection = (currentBiosSelection + 1) % biosMenuItems.length;
+            updateBiosSelection();
+        } else if (e.key === 'Enter' || e.keyCode === 13) {
+            const selectedAction = biosMenuItems[currentBiosSelection].dataset.action;
+            if (selectedAction === 'critical-error') {
+                triggerCriticalError();
+            } else if (selectedAction === 'exit-save' || selectedAction === 'exit-discard' || e.key === 'Escape' || e.keyCode === 27 || e.key === 'F7' || e.keyCode === 118) {
+                exitSimulatedBIOS();
+            } else if (selectedAction === 'normal') {
+                // Aquí podrías añadir una lógica para submenús o mensajes para otras opciones de la BIOS
+                // alert(`Entrando a ${biosMenuItems[currentBiosSelection].textContent.trim()}... (no implementado aún)`);
+            }
+        } else if (e.key === 'Escape' || e.keyCode === 27) {
+            exitSimulatedBIOS();
+        } else if (e.key === 'F7' || e.keyCode === 118) {
+             exitSimulatedBIOS();
+        }
+    }
+
+    document.addEventListener('keydown', handleBootKeydown);
+    window.onload = showBoot;
+
+    function openNotepad() {
+      const notepad = document.createElement('div');
+      notepad.className = 'window'; // Mantiene la clase base 'window'
+      notepad.style.position = 'absolute';
+      notepad.style.top = '100px';
+      notepad.style.left = '100px';
+      notepad.style.width = '400px';
+      notepad.style.height = '300px';
+      notepad.innerHTML = `
+        <div class='title-bar'><span>📝 Notepad</span><div class="controls"><span style='font-size:16px;'>-</span><span style='font-size:16px;'>&#9723;</span><span onclick='this.closest(".window").remove()'>✖</span></div></div>
+        <textarea style='flex-grow:1;resize:none;border:none;padding:4px;box-sizing:border-box;'></textarea>
+      `;
+      os.appendChild(notepad);
+      makeWindowDraggable(notepad);
+    }
+
+    function openCmd() {
+      const cmd = document.createElement('div');
+      cmd.className = 'window cmd-window'; // Agregamos una clase específica 'cmd-window'
+      cmd.style.position = 'absolute';
+      cmd.style.top = '150px';
+      cmd.style.left = '150px';
+      cmd.style.width = '600px';
+      cmd.style.height = '400px';
+      cmd.style.padding = '0';
+      cmd.style.fontFamily = 'monospace';
+      cmd.innerHTML = `
+        <div class='title-bar'>
+            <span>C:\\WINDOWS\\system32\\cmd.exe</span>
+            <div class="controls">
+                <span style='font-size:16px;'>-</span>
+                <span style='font-size:16px;'>&#9723;</span>
+                <span onclick='this.closest(".window").remove()'>✖</span>
+            </div>
+        </div>
+        <div id="cmd-output" style="padding:10px;height:calc(100% - 70px);overflow-y:auto;white-space:pre-wrap;">Microsoft Windows Longhorn [Version 5.2.3790]<br>(C) Copyright 1985-2003 Microsoft Corp.<br><br></div>
+        <div style="display:flex;padding:0 10px 10px 10px;"><span style="margin-right:5px;">C:\\></span><input id="cmd-input" type="text" style="flex-grow:1;background:black;color:lime;border:none;font-family:monospace;outline:none;"></div>
+      `;
+      os.appendChild(cmd);
+      makeWindowDraggable(cmd);
+
+      const input = cmd.querySelector("#cmd-input"); // Usamos el ID nuevo
+      const output = cmd.querySelector("#cmd-output"); // Usamos el ID nuevo
+
+      input.focus();
+
+      input.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+          const command = input.value.trim();
+          output.innerText += `C:\\>${command}\n`;
+          let result = "";
+          if (command === "help") {
+            result += "Available commands:\n";
+            result += "  help          - Displays this help message.\n";
+            result += "  echo [text]   - Displays the specified text.\n";
+            result += "  clear         - Clears the command prompt screen.\n";
+            result += "  delete system32 - Simulate a critical system error.\n";
+            result += "  ipconfig      - Displays current network configuration.\n";
+            result += "  dir           - Lists files and subdirectories.\n";
+          } else if (command.startsWith("echo ")) {
+            result += command.slice(5) + "\n";
+          } else if (command === "clear") {
+            output.innerText = "Microsoft Windows Longhorn [Version 5.2.3790]\n(C) Copyright 1985-2003 Microsoft Corp.\n\n";
+            input.value = "";
+            output.scrollTop = output.scrollHeight;
+            return;
+          } else if (command.toLowerCase() === "delete system32") {
+            output.innerText += "Deleting critical system files... This may take a moment.\n";
+            setTimeout(() => {
+              os.style.display = 'none';
+              blueScreen.style.display = 'block'; // Usamos blueScreen, no criticalErrorScreen aquí
+              simulateReboot();
+            }, 2000);
+            input.value = "";
+            return;
+          } else if (command === "ipconfig") {
+            result += "Windows IP Configuration\n\n";
+            result += "Ethernet adapter Local Area Connection:\n";
+            result += "   Connection-specific DNS Suffix  . :\n";
+            result += "   IP Address. . . . . . . . . . . . : 192.168.1.100\n";
+            result += "   Subnet Mask . . . . . . . . . . . : 255.255.255.0\n";
+            result += "   Default Gateway . . . . . . . . . : 192.168.1.1\n";
+          } else if (command === "dir") {
+            result += " Volume in drive C has no label.\n";
+            result += " Volume Serial Number is 1234-5678\n\n";
+            result += " Directory of C:\\\n\n";
+            result += "06/16/2025  09:00 PM    <DIR>          Documents and Settings\n";
+            result += "06/16/2025  09:00 PM    <DIR>          Program Files\n";
+            result += "06/16/2025  09:00 PM    <DIR>          WINDOWS\n";
+            result += "06/16/2025  09:00 PM             0     boot.ini\n";
+            result += "06/16/2025  09:00 PM             0     pagefile.sys\n";
+            result += "               2 File(s)              0 bytes\n";
+            result += "               3 Dir(s)               X,XXX,XXX,XXX bytes free\n";
+          }
+          else {
+            result += `'${command}' is not recognized as an internal or external command,\noperable program or batch file.\n`;
+          }
+          output.innerText += result;
+          output.scrollTop = output.scrollHeight;
+          input.value = "";
+        }
+      });
+    }
+
+    function openPaint() {
+        const paintWindow = document.createElement('div');
+        paintWindow.className = 'window'; // Mantiene la clase base 'window'
+        paintWindow.style.position = 'absolute';
+        paintWindow.style.top = '50px';
+        paintWindow.style.left = '50px';
+        paintWindow.style.width = '700px';
+        paintWindow.style.height = '500px';
+        paintWindow.innerHTML = `
+            <div class='title-bar'><span>🎨 Paint</span><div class="controls"><span style='font-size:16px;'>-</span><span style='font-size:16px;'>&#9723;</span><span onclick='this.closest(".window").remove()'>✖</span></div></div>
+            <div class="paint-app-controls">
+                <label for="paintColor">Color:</label>
+                <input type="color" id="paintColor" value="#000000">
+                <label for="brushSize">Tamaño:</label>
+                <input type="range" id="brushSize" min="1" max="20" value="5">
+                <button id="clearCanvas">Borrar</button>
+            </div>
+            <canvas class="paint-app-canvas"></canvas>
+        `;
+        os.appendChild(paintWindow);
+        makeWindowDraggable(paintWindow);
+
+        const canvas = paintWindow.querySelector('.paint-app-canvas');
+        const ctx = canvas.getContext('2d');
+        const colorPicker = paintWindow.querySelector('#paintColor');
+        const brushSizeSlider = paintWindow.querySelector('#brushSize');
+        const clearButton = paintWindow.querySelector('#clearCanvas');
+
+        // Función de redimensionamiento del canvas
+        const resizeCanvas = () => {
+            // Guarda el contenido actual del canvas
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            // Ajusta el tamaño del canvas al tamaño actual del contenedor
+            const parentWidth = canvas.parentElement.clientWidth;
+            const parentHeight = canvas.parentElement.clientHeight - paintWindow.querySelector('.title-bar').offsetHeight - paintWindow.querySelector('.paint-app-controls').offsetHeight;
+
+            canvas.width = parentWidth;
+            canvas.height = parentHeight;
+
+            // Restaura el contenido del canvas
+            ctx.putImageData(imageData, 0, 0);
+
+            // Restablece los estilos del contexto (se pueden perder al redimensionar)
+            ctx.strokeStyle = colorPicker.value;
+            ctx.lineWidth = brushSizeSlider.value;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+        };
+
+        // Observador para detectar cambios de tamaño en la ventana padre (la ventana de la app)
+        const observer = new MutationObserver(resizeCanvas);
+        observer.observe(paintWindow, { attributes: true, childList: true, subtree: true });
+
+        resizeCanvas(); // Llama una vez al inicio para establecer el tamaño inicial
+
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        ctx.strokeStyle = colorPicker.value;
+        ctx.lineWidth = brushSizeSlider.value;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+
+        const draw = (e) => {
+            if (!isDrawing) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(mouseX, mouseY);
+            ctx.stroke();
+
+            lastX = mouseX;
+            lastY = mouseY;
+        };
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            lastX = e.clientX - rect.left;
+            lastY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('mousemove', draw);
+
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        canvas.addEventListener('mouseout', () => {
+            isDrawing = false;
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isDrawing = true;
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            lastX = touch.clientX - rect.left;
+            lastY = touch.clientY - rect.top;
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!isDrawing) return;
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const touchX = touch.clientX - rect.left;
+            const touchY = touch.clientY - rect.top;
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(touchX, touchY);
+            ctx.stroke();
+
+            lastX = touchX;
+            lastY = touchY;
+        });
+
+        canvas.addEventListener('touchend', () => {
+            isDrawing = false;
+        });
+        canvas.addEventListener('touchcancel', () => {
+            isDrawing = false;
+        });
+
+
+        colorPicker.addEventListener('input', (e) => {
+            ctx.strokeStyle = e.target.value;
+        });
+
+        brushSizeSlider.addEventListener('input', (e) => {
+            ctx.lineWidth = e.target.value;
+        });
+
+        clearButton.addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+
+        paintWindow.addEventListener('remove', () => {
+            observer.disconnect(); // Desconectar el observador cuando la ventana se cierra
+        });
+    }
+
+    function toggleStartMenu() {
+      const menu = document.getElementById("start-menu");
+      menu.style.display = (menu.style.display === "none" || menu.style.display === "") ? "flex" : "none";
+    }
+
+    function updateClock() {
+      const clock = document.getElementById("clock");
+      const now = new Date();
+      const time = now.toLocaleTimeString();
+      const date = now.toLocaleDateString();
+      clock.textContent = `${date} ${time}`;
+    }
+
+    // Usamos una clase para la BSOD, no un elemento creado dinámicamente cada vez
+    const blueScreen = document.createElement('div');
+    blueScreen.className = 'blue-screen-of-death'; // Asigna la clase CSS
+    blueScreen.innerText = '*** STOP: 0x000000C1 (0x00000000, 0x00000000, 0x00000000, 0x00000000)\n\nAn unexpected kernel mode trap occurred.\n\n*** Address 0x80860000 has a value of 0x00000000\n\nBeginning dump of physical memory\nPhysical memory dump complete.\nContact your system administrator or technical support group for assistance.';
+    document.body.appendChild(blueScreen);
+
+
+    function simulateReboot() {
+      setTimeout(() => {
+        blueScreen.style.display = 'none';
+        screen.innerText = "";
+        screen.style.display = 'block';
+        index = 0;
+        showBoot();
+      }, 5000);
+    }
+
+    function makeWindowDraggable(element) {
+      let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+      const titleBar = element.querySelector('.title-bar');
+
+      if (titleBar) {
+        titleBar.onmousedown = dragMouseDown;
+      } else {
+        element.onmousedown = dragMouseDown;
+      }
+
+      function dragMouseDown(e) {
+        e = e || window.event;
+        e.preventDefault();
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = elementDrag;
+      }
+
+      function elementDrag(e) {
+        e = e || window.event;
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        element.style.top = (element.offsetTop - pos2) + "px";
+        element.style.left = (element.offsetLeft - pos1) + "px";
+      }
+
+      function closeDragElement() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+      }
+    }
+  </script>
+</body>
+</html>
